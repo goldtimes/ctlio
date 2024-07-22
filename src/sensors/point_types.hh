@@ -25,9 +25,8 @@ using FullPointCloudPtr = FullPointCloud::Ptr;
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(ctlio::FullPointType,
                                   (float, x, x)(float, y, y)(float, z, z)(float, range, range)(float, radius, radius)(
-                                      uint8_t, intensity,
-                                      intensity)(uint8_t, ring, ring)(uint8_t, angle,
-                                                                      angle)(double, time, time)(float, height, height))
+                                      std::uint8_t, intensity, intensity)(std::uint8_t, ring, ring)(
+                                      std::uint8_t, angle, angle)(double, time, time)(float, height, height))
 
 namespace livox_ros {
 struct EIGEN_ALIGN16 Point {
@@ -42,7 +41,7 @@ struct EIGEN_ALIGN16 Point {
    // clang-format off
 POINT_CLOUD_REGISTER_POINT_STRUCT(livox_ros::Point,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(
-                                      float, time, time)(uint16_t, ring, ring)(uint16_t, tag, tag))
+                                      float, time, time)(std::uint16_t, ring, ring)(std::uint16_t, tag, tag))
    // clang-format on
 
 namespace velodyne_ros {
@@ -71,8 +70,8 @@ struct EIGEN_ALIGN16 Point {
 };
 }  // namespace robosense_ros
 POINT_CLOUD_REGISTER_POINT_STRUCT(robosense_ros::Point,
-                                  (float, x, x)(float, y, y)(float, z, z)(uint8_t, intensity, intensity)(
-                                      uint16_t, ring, ring)(double, timestamp, timestamp))
+                                  (float, x, x)(float, y, y)(float, z, z)(std::uint8_t, intensity, intensity)(
+                                      std::uint16_t, ring, ring)(double, timestamp, timestamp))
 namespace ouster_ros {
 struct EIGEN_ALIGN16 Point {
     PCL_ADD_POINT4D;
@@ -110,9 +109,8 @@ struct EIGEN_ALIGN16 Point {
 };
 }  // namespace pandar_ros
 POINT_CLOUD_REGISTER_POINT_STRUCT(pandar_ros::Point,
-                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity,
-                                                                          intensity)(double, timestamp,
-                                                                                     timestamp)(uint16_t, ring, ring))
+                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(
+                                      double, timestamp, timestamp)(std::uint16_t, ring, ring))
 // 镭神
 namespace lslidar_ros {
 struct EIGEN_ALIGN16 Point {

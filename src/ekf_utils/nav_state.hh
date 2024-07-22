@@ -36,7 +36,7 @@ class NavState {
         return os;
     }
 
-   private:
+   public:
     double timestamp_ = 0.0;
     SO3 R_;
     Eigen::Vector3d p_ = Eigen::Vector3d::Zero();

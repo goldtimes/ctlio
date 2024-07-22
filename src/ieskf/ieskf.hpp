@@ -3,6 +3,7 @@
  */
 
 #pragma once
+#include <functional>
 #include "ekf_utils/nav_state.hh"
 #include "glog/logging.h"
 #include "sensors/imu.hh"
@@ -17,21 +18,22 @@ class IESKF {
    public:
     using SO3 = Sophus::SO3d;
     using SE3 = Sophus::SE3d;
-
+    using CustomObsFunc = std::function<void(const SE3& input_pose, Eigen::Matrix<double, 18, 18>& HT_Vinv_H,
+                                             Eigen::Matrix<double, 18, 1>& HT_Vinv_r)>;
     struct Options {
         double imu_dt_ = 0.01;
-        double odom_dt_ = 0.1;
-
+        int num_iterations_ = 3;
+        double quit_eps_ = 1e-3;  // 终止迭代
         // 噪声
         double gyro_var_ = 1e-6;
         double acc_var_ = 1e-2;
         double bias_gyro_var_ = 1e-6;
         double bias_acc_var_ = 1e-4;
 
-        // odom
-        double odom_var_ = 0.5;
-        double wheel_radius_ = 0.155;
-        double circle_pulse_ = 1024.0;
+        /// RTK 观测参数
+        double gnss_pos_noise_ = 0.1;             // GNSS位置噪声
+        double gnss_height_noise_ = 0.1;          // GNSS高度噪声
+        double gnss_ang_noise_ = 1.0 * kDEG2RAD;  // GNSS旋转噪声
     };
     IESKF(Options options = Options()) : options_(options) {
         BuildNoise(options_);
@@ -45,26 +47,12 @@ class IESKF {
         bg_ = init_bg;
         gravity_ = gravity;
         cov_ = Eigen::Matrix<double, 18, 18>::Identity() * 1e-4;
+        cov_.block<3, 3>(6, 6) = 0.1 * kDEG2RAD * Eigen::Matrix<double, 3, 3>::Identity();
     }
-
-    // lidar松耦合的位姿观测
-    bool ObserveSE3(const SE3& pose, double trans_noise = 0.1, double ang_noise = 1.0 * kDEG2RAD);
-    bool ObserveSE3(const SE3& pose, const Eigen::Matrix<double, 6, 1>& noise);
-    // 速度观测
-    bool ObserveWheelSpeed(const Odom& odom);
 
     bool Predict(const IMU& imu);
 
-    void UpdateAndReset() {
-        p_ += dx_.segment<3>(0);
-        v_ += dx_.segment<3>(3);
-        R_ = R_ * Sophus::SO3d::exp(dx_.segment<3>(6));
-        bg_ += dx_.segment<3>(9);
-        ba_ += dx_.segment<3>(12);
-        gravity_ += dx_.segment<3>(15);
-        // project cov;
-        dx_.setZero();
-    }
+    bool UpdateUsingCustomObserver(CustomObsFunc func);
 
     // 获取状态
     NavState GetNominalState() const {
@@ -111,15 +99,26 @@ class IESKF {
 
         // 设置过程噪声
         Q_.diagonal() << 0, 0, 0, ev2, ev2, ev2, et2, et2, et2, eg2, eg2, eg2, ea2, ea2, ea2, 0, 0, 0;
-        double o2 = options_.odom_var_ * options_.odom_var_;
-        odom_noise_.diagonal() << o2, o2, o2;
+        double gp2 = options_.gnss_pos_noise_ * options_.gnss_pos_noise_;
+        double gh2 = options_.gnss_height_noise_ * options_.gnss_height_noise_;
+        double ga2 = options_.gnss_ang_noise_ * options_.gnss_ang_noise_;
+        gnss_noise_.diagonal() << gp2, gp2, gh2, ga2, ga2, ga2;
     }
 
-    void ProjectCov() {
-        Eigen::Matrix<double, 18, 18> J = Eigen::Matrix<double, 18, 18>::Identity();
-        J.block<3, 3>(6, 6) = Eigen::Matrix<double, 3, 3>::Identity() - SO3::hat(dx_.segment<3>(6));
-        cov_ = J * cov_ * J.transpose();
+    void Update() {
+        p_ += dx_.segment<3>(0);
+        v_ += dx_.segment<3>(3);
+        R_ = R_ * Sophus::SO3d::exp(dx_.segment<3>(6));
+        bg_ += dx_.segment<3>(9);
+        ba_ += dx_.segment<3>(12);
+        gravity_ += dx_.segment<3>(15);
     }
+
+    // void ProjectCov() {
+    //     Eigen::Matrix<double, 18, 18> J = Eigen::Matrix<double, 18, 18>::Identity();
+    //     J.block<3, 3>(6, 6) = Eigen::Matrix<double, 3, 3>::Identity() - SO3::hat(dx_.segment<3>(6));
+    //     cov_ = J * cov_ * J.transpose();
+    // }
 
    private:
     Options options_;
@@ -136,7 +135,7 @@ class IESKF {
     Eigen::Matrix<double, 18, 18> cov_ = Eigen::Matrix<double, 18, 18>::Identity();
     // 系统噪声矩阵
     Eigen::Matrix<double, 18, 18> Q_ = Eigen::Matrix<double, 18, 18>::Identity();
-    Eigen::Matrix<double, 3, 3> odom_noise_;
+    Eigen::Matrix<double, 6, 6> gnss_noise_;
     double current_time_;
     NavState navi_state;
 };
@@ -177,69 +176,32 @@ bool IESKF::Predict(const IMU& imu) {
     return true;
 }
 
-bool IESKF::ObserveSE3(const SE3& pose, double trans_noise = 0.1, double ang_noise = 1.0 * kDEG2RAD) {
-    Eigen::Matrix<double, 6, 18> H = Eigen::Matrix<double, 6, 18>::Zero();
-    // p 对 p
-    H.block<3, 3>(0, 0) = Eigen::Matrix<double, 3, 3>::Identity();
-    // v 对 R
-    H.block<3, 3>(3, 6) = Eigen::Matrix<double, 3, 3>::Identity();
-    // K
-    Eigen::Matrix<double, 6, 1> noise;
-    noise << trans_noise, trans_noise, trans_noise, ang_noise, ang_noise, ang_noise;
-    Eigen::Matrix<double, 6, 6> noise_matrix = noise.asDiagonal();
-    Eigen::Matrix<double, 18, 6> K = cov_ * H.transpose() * (H * cov_ * H.transpose() + noise_matrix).inverse();
-
-    Eigen::Matrix<double, 6, 1> error = Eigen::Matrix<double, 6, 1>::Zero();
-    error.segment<3>(0) = pose.translation() - p_;
-    error.segment<3>(3) = (R_.inverse() * pose.so3()).log();
-    dx_ = K * error;
-    cov_ = (Eigen::Matrix<double, 18, 18>::Identity() - K * H) * cov_;
-
-    UpdateAndReset();
+// ieskf 的公式需要结合高博的书
+bool IESKF::UpdateUsingCustomObserver(CustomObsFunc func) {
+    // H矩阵从外面传递进来
+    SO3 start_R = R_;
+    Eigen::Matrix<double, 18, 1> HTVr;
+    Eigen::Matrix<double, 18, 18> HTVH;
+    Eigen::Matrix<double, 18, Eigen::Dynamic> K;
+    Eigen::Matrix<double, 18, 18> Pk, Qk;
+    for (int iter = 0; iter < options_.num_iterations_; ++iter) {
+        func(GetNominalSE3(), HTVH, HTVr);
+        Eigen::Matrix<double, 18, 18> J = Eigen::Matrix<double, 18, 18>::Identity();
+        J.block<3, 3>(6, 6) = Eigen::Matrix3d::Identity() - 0.5 * SO3::hat((R_.inverse() * start_R).log());
+        Pk = J * cov_ * J.transpose();
+        // 卡尔曼增益
+        Qk = (Pk.inverse() + HTVH).inverse();
+        dx_ = Qk * HTVr;
+        Update();
+        if (dx_.norm() < options_.quit_eps_) {
+            break;
+        }
+    }
+    cov_ = (Eigen::Matrix<double, 18, 18>::Identity() - Qk * HTVH) * Pk;
+    Eigen::Matrix<double, 18, 18> J = Eigen::Matrix<double, 18, 18>::Identity();
+    J.block<3, 3>(6, 6) = Eigen::Matrix3d::Identity() - 0.5 * SO3::hat((R_.inverse() * start_R).log());
+    cov_ = J * cov_ * J.transpose();
+    dx_.setZero();
     return true;
 }
-bool IESKF::ObserveSE3(const SE3& pose, const Eigen::Matrix<double, 6, 1>& noise) {
-    Eigen::Matrix<double, 6, 18> H = Eigen::Matrix<double, 6, 18>::Zero();
-    // p 对 p
-    H.block<3, 3>(0, 0) = Eigen::Matrix<double, 3, 3>::Identity();
-    // v 对 R
-    H.block<3, 3>(3, 6) = Eigen::Matrix<double, 3, 3>::Identity();
-    // K
-    // Eigen::Matrix<double, 6, 1> noise;
-    // noise << trans_noise, trans_noise, trans_noise, ang_noise, ang_noise, ang_noise;
-    Eigen::Matrix<double, 6, 6> noise_matrix = noise.asDiagonal();
-    Eigen::Matrix<double, 18, 6> K = cov_ * H.transpose() * (H * cov_ * H.transpose() + noise_matrix).inverse();
-
-    Eigen::Matrix<double, 6, 1> error = Eigen::Matrix<double, 6, 1>::Zero();
-    error.segment<3>(0) = pose.translation() - p_;
-    error.segment<3>(3) = (R_.inverse() * pose.so3()).log();
-    dx_ = K * error;
-    cov_ = (Eigen::Matrix<double, 18, 18>::Identity() - K * H) * cov_;
-
-    UpdateAndReset();
-    return true;
-}
-bool IESKF::ObserveWheelSpeed(const Odom& odom) {
-    assert(odom.timestamp_ >= current_time_);
-    // 速度对18维的观测
-    Eigen::Matrix<double, 3, 18> H = Eigen::Matrix<double, 3, 18>::Zero();
-    // 对v的jacobian
-    H.block<3, 3>(0, 3) = Eigen::Matrix<double, 3, 3>::Identity();
-    // 卡尔曼增益k
-    Eigen::Matrix<double, 18, 3> K = cov_ * H.transpose() * (H * cov_ * H.transpose() + odom_noise_).inverse();
-    // dx = K(观测 - 预测)
-    // 计算轮速
-    double velo_l = options_.wheel_radius_ * odom.left_pulse_ / options_.circle_pulse_ * 2 * M_PI / options_.odom_dt_;
-    double velo_r = options_.wheel_radius_ * odom.right_pulse_ / options_.circle_pulse_ * 2 * M_PI / options_.odom_dt_;
-    double average_vel = 0.5 * (velo_l + velo_r);
-    // 速度是车体系下的速度
-    Eigen::Vector3d vel_odom(average_vel, 0, 0);
-    Eigen::Vector3d vel_world = R_ * vel_odom;
-    dx_ = K * (vel_world - v_);
-    // update cov;
-    cov_ = (Eigen::Matrix<double, 18, 18>::Identity() - K * H) * cov_;
-    UpdateAndReset();
-    return true;
-}
-
 }  // namespace ctlio

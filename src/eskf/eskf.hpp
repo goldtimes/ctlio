@@ -63,6 +63,7 @@ class ESKF {
         ba_ += dx_.segment<3>(12);
         gravity_ += dx_.segment<3>(15);
         // project cov;
+        ProjectCov();
         dx_.setZero();
     }
 

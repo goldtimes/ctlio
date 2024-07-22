@@ -1,0 +1,4 @@
+YAML: 1.0
+preprocess:
+  point_filter_num: 1
+  lidar_type: 4 #2-velodyne 3-ouster  4-robosense

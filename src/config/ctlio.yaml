@@ -1,4 +1,10 @@
 YAML: 1.0
+
 preprocess:
   point_filter_num: 1
   lidar_type: 4 #2-velodyne 3-ouster  4-robosense
+  blind: 0.1
+
+common:
+  imu_topic: /imu/data #/imu_raw   /gps/gtimu
+  lidar_topic: /velodyne_points  #/points_raw  /rslidar_points /velodyne_points

@@ -8,6 +8,7 @@
 #include <tf/transform_broadcaster.h>
 #include <yaml-cpp/yaml.h>
 #include <memory>
+#include <random>
 #include <thread>
 #include "lidar_process/lidar_process.hh"
 #include "sensors/imu.hh"
@@ -61,11 +62,14 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "main_node");
     ros::NodeHandle nh;
     // yaml
-    std::string yaml_path = std::string(ROOT_DIR) + "config/ctlio.yaml";
-
+    std::string yaml_path = std::string(ROOT_DIR) + "src/config/ctlio.yaml";
+    // std::cout << "ROOT_DIR: " << std::string(ROOT_DIR) << std::endl;
+    // std::cout << "yaml_path: " << yaml_path << std::endl;
     YAML::Node yaml = YAML::LoadFile(yaml_path);
     lidar_topic = yaml["common"]["lidar_topic"].as<std::string>();
     imu_topic = yaml["common"]["imu_topic"].as<std::string>();
+    std::cout << "lidar_topic: " << lidar_topic << std::endl;
+    std::cout << "imu_topic: " << imu_topic << std::endl;   
     // lio
     // lidar_process
     lidar_process = std::make_shared<ctlio::LidarProcess>();

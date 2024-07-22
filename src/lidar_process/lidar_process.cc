@@ -8,6 +8,9 @@ void LidarProcess::LoadYaml(const std::string& yaml_file) {
     point_filter_num = yaml["preprocess"]["point_filter_num"].as<int>();
     // blind
     blind = yaml["preprocess"]["blind"].as<float>();
+    std::cout << "lidar_type:" << type << std::endl;
+    std::cout << "point_filter_num:" << point_filter_num << std::endl;
+    std::cout << "blind:" << blind << std::endl;
     if (type == 1) {
         lidar_type = LidarType::AVIA;
     } else if (type == 2) {

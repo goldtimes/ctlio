@@ -13,7 +13,7 @@ class Timer {
     // 定义一个结构体，保存函数和调用该函数的时间
     struct TimerRecord {
         TimerRecord() = default;
-        TimerRecord(std::string& name, double time_usage) {
+        TimerRecord(const std::string& name, double time_usage) {
             func_name = name;
             time_usage_in_ms.push_back(time_usage);
         }
@@ -34,7 +34,7 @@ class Timer {
 
         if (records_.find(func_name) == records_.end()) {
             TimerRecord record(func_name, time_used);
-            records_.insert({func, record});
+            records_.insert({func_name, record});
         } else {
             records_[func_name].time_usage_in_ms.push_back(time_used);
         }

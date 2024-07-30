@@ -33,6 +33,9 @@ class LidarProcess {
     void process(const livox_ros_driver::CustomMsg::Ptr& msg, std::vector<point3D>& pcl_out);
     // 处理标准的点云雷达
     void process(const sensor_msgs::PointCloud2::Ptr& msg, std::vector<point3D>& pcl_out);
+    double getTimeSpan() const {
+        return timespan_;
+    }
 
    private:
     void AviaHandler(const livox_ros_driver::CustomMsg::ConstPtr& msg, std::vector<point3D>& pcl_out);

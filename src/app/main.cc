@@ -11,6 +11,7 @@
 #include <random>
 #include <thread>
 #include "lidar_process/lidar_process.hh"
+#include "lio/lidar_odom.hh"
 #include "sensors/imu.hh"
 #include "sensors/point_types.hh"
 #include "tools/lidar_utils.hh"
@@ -29,6 +30,8 @@ ros::Publisher pub_lidar_path;
 ros::Subscriber lidar_sub;
 ros::Subscriber imu_sub;
 
+std::shared_ptr<ctlio::LidarOdom> lio;
+
 void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     // ConstPtr to Ptr;
     sensor_msgs::PointCloud2::Ptr cloud_in(new sensor_msgs::PointCloud2(*msg));
@@ -36,7 +39,7 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     std::vector<ctlio::point3D> cloud_out;
     ctlio::Timer::Evaluate([&]() { lidar_process->process(cloud_in, cloud_out); }, "lidar process");
     // 利用voxel降采样
-    // lio push_cloud();
+    lio->push_lidar(cloud_out, std::make_pair(msg->header.stamp.toSec(), lidar_process->getTimeSpan()));
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr& msg) {
@@ -69,8 +72,9 @@ int main(int argc, char** argv) {
     lidar_topic = yaml["common"]["lidar_topic"].as<std::string>();
     imu_topic = yaml["common"]["imu_topic"].as<std::string>();
     std::cout << "lidar_topic: " << lidar_topic << std::endl;
-    std::cout << "imu_topic: " << imu_topic << std::endl;   
+    std::cout << "imu_topic: " << imu_topic << std::endl;
     // lio
+    lio = std::make_shared<ctlio::LidarOdom>();
     // lidar_process
     lidar_process = std::make_shared<ctlio::LidarProcess>();
     lidar_process->LoadYaml(yaml_path);

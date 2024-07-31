@@ -12,6 +12,8 @@ namespace ctlio {
 class StaticImuInit {
    public:
     struct InitOptions {
+        InitOptions() {
+        }
         bool use_odom = false;           // 使用速度来判断静止
         double init_time_seconds = 1.0;  // 静止时间
         // 设置零偏和噪声的阈值，太大则认为初始化失败
@@ -24,7 +26,7 @@ class StaticImuInit {
         int max_imu_size = 2000;
     };
 
-    explicit StaticImuInit(InitOptions options = InitOptions()) : options_(options) {
+    StaticImuInit(InitOptions options = InitOptions()) : options_(options) {
     }
 
     void AddImu(const IMU& imu) {

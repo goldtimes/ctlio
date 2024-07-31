@@ -1,7 +1,7 @@
 #pragma once
 #include <glog/logging.h>
 #include <ros/ros.h>
-#include <sophus/se3.h>
+#include <sophus/se3.hpp>
 #include <yaml-cpp/yaml.h>
 #include <condition_variable>
 #include <deque>
@@ -40,7 +40,7 @@ class LidarOdom {
     StaticImuInit static_imu_init;
     double lidar_imu_dt;
     // 从右往左看
-    Sophus::SE3 T_IL;
+    Sophus::SE3d T_IL;
     Eigen::Vector3d P_lidar_in_imu;
     Eigen::Matrix3d R_lidar_to_imu;
 

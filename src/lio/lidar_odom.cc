@@ -26,7 +26,8 @@ bool LidarOdom::init(const std::string& config_file) {
     q_IL.normalize();
     P_lidar_in_imu = t_lidar_in_imu;
     R_lidar_to_imu = r_lidar_in_imu;
-    T_IL = Sophus::SE3(q_IL, t_lidar_in_imu);
+    T_IL = Sophus::SE3d(q_IL, t_lidar_in_imu);
+    return true;
 }
 
 void LidarOdom::loadOptions(const std::string& config_file) {
@@ -47,6 +48,7 @@ void LidarOdom::pushImu(IMUPtr& imu_msg) {
 }
 
 void LidarOdom::pushLidar(const std::vector<point3D>& msg, std::pair<double, double> data) {
+    // std::cout << "push lidar" << std::endl;
     if (data.first < last_timestamp_lidar_) {
         LOG(ERROR) << "lidar loop back";
         lidar_buffer.clear();
@@ -68,10 +70,11 @@ void LidarOdom::run() {
             measurments = getMeasurments();
             return measurments.size() != 0;
         });
+        lck.unlock();
         // debug
-        if (measurments.size() != 0) {
-            LOG(INFO) << "meas size:" << measurments.size();
-        }
+        // if (measurments.size() != 0) {
+        //     LOG(INFO) << "meas size:" << measurments.size();
+        // }
         // 处理传感器数据
     }
 }
@@ -95,10 +98,11 @@ std::vector<MeasureGroup> LidarOdom::getMeasurments() {
         processed_measure_time_ = meas.lidar_end_time;
         double imu_time = imu_buff.front()->timestamp_;
         meas.imu_datas.clear();
-        while (!imu_buff.empty()) {
+        while (!imu_buff.empty() && imu_time < meas.lidar_end_time) {
+            
+            imu_time = imu_buff.front()->timestamp_;
             if (imu_time < meas.lidar_begin_time) {
                 imu_buff.pop_front();
-                imu_time = imu_buff.front()->timestamp_;
                 continue;
             }
             if (imu_time > meas.lidar_end_time) {
@@ -107,7 +111,7 @@ std::vector<MeasureGroup> LidarOdom::getMeasurments() {
             meas.imu_datas.push_back(imu_buff.front());
             imu_buff.pop_front();
         }
-        // 多加入一帧 用来做插值
+        // // 多加入一帧 用来做插值
         if (!imu_buff.empty()) {
             meas.imu_datas.push_back(imu_buff.front());
         }

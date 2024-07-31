@@ -17,11 +17,11 @@ template <typename C, typename D, typename Getter>
 void ComputeMeanAndCovDiag(const C& datas, D& mean, D& cov_diag, Getter&& getter) {
     size_t len = datas.size();
     // 均值
-    mean = std::accumulate(datas.begin(), datas.end(), D::Zero()::eval(),
+    mean = std::accumulate(datas.begin(), datas.end(), D::Zero().eval(),
                            [&getter](const D& sum, const auto& data) -> D { return sum + getter(data); }) /
            len;
     // 协方差对角线 |值-均值| / (len-1)
-    cov_diag = std::accumulate(datas.begin(), datas.end(), D::Zero()::eval(),
+    cov_diag = std::accumulate(datas.begin(), datas.end(), D::Zero().eval(),
                                [&getter, &mean](const D& sum, const auto& data) -> D {
                                    return sum + (getter(data) - mean).cwiseAbs2().eval();
                                }) /
@@ -35,13 +35,13 @@ void ComputeMeanAndCov(const C& datas, Eigen::Matrix<double, dim, 1>& mean, Eige
     using E = Eigen::Matrix<double, dim, dim>;
     size_t len = datas.size();
     // 均值
-    mean = std::accumulate(datas.begin(), datas.end(), Eigen::Matrix<double, dim, 1>:Zero()::eval(),
+    mean = std::accumulate(datas.begin(), datas.end(), Eigen::Matrix<double, dim, 1>::Zero().eval(),
                            [&getter](const D& sum, const auto& data) -> D { return sum + getter(data); }) /
            len;
     // 协方差
-    cov = std::accumulate(datas.begin(), datas.end(), Eigen::Matrix<double, dim, dim>::Zero()::eval(),
+    cov = std::accumulate(datas.begin(), datas.end(), Eigen::Matrix<double, dim, dim>::Zero().eval(),
                           [&getter, &mean](const E& sum, const auto& data) -> E {
-                              D value = getter(data) - mean;
+                              D v = getter(data) - mean;
                               return sum += v * v.transpose();
                           }) /
           (len - 1);

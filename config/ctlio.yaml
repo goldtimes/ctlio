@@ -7,4 +7,4 @@ preprocess:
 
 common:
   imu_topic: /imu/data #/imu_raw   /gps/gtimu
-  lidar_topic: /velodyne_points  #/points_raw  /rslidar_points /velodyne_points
+  lidar_topic: /rslidar_points  #/points_raw  /rslidar_points /velodyne_points

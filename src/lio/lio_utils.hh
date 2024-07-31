@@ -3,9 +3,9 @@
 #include <Eigen/Dense>
 #include <deque>
 #include <vector>
-#include "lio/lio_utils.hh"
 #include "sensors/imu.hh"
 #include "sensors/point_types.hh"
+#include "tools/lidar_utils.hh"
 
 namespace ctlio {
 enum ICPMODEL { POINT_TO_PLANE = 0, CT_POINT_TO_PLANE = 1 };

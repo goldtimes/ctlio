@@ -39,14 +39,14 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     std::vector<ctlio::point3D> cloud_out;
     ctlio::Timer::Evaluate([&]() { lidar_process->process(cloud_in, cloud_out); }, "lidar process");
     // 利用voxel降采样
-    lio->push_lidar(cloud_out, std::make_pair(msg->header.stamp.toSec(), lidar_process->getTimeSpan()));
+    lio->pushLidar(cloud_out, std::make_pair(msg->header.stamp.toSec(), lidar_process->getTimeSpan()));
 }
 
 void imu_callback(const sensor_msgs::Imu::ConstPtr& msg) {
     Eigen::Vector3d acc(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
     Eigen::Vector3d gyro(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
-    ctlio::IMU imu(msg->header.stamp.toSec(), acc, gyro);
-    // lio push_imu();
+    IMUPtr imu = std::make_shared<ctlio::IMU>(msg->header.stamp.toSec(), acc, gyro);
+    lio->pushImu(imu);
 }
 
 // 这里的nh不能为const
@@ -65,8 +65,8 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "main_node");
     ros::NodeHandle nh;
     // yaml
-    std::string yaml_path = std::string(ROOT_DIR) + "src/config/ctlio.yaml";
-    // std::cout << "ROOT_DIR: " << std::string(ROOT_DIR) << std::endl;
+    std::string yaml_path = std::string(ROOT_DIR) + "config/ctlio.yaml";
+    std::cout << "ROOT_DIR: " << std::string(ROOT_DIR) << std::endl;
     // std::cout << "yaml_path: " << yaml_path << std::endl;
     YAML::Node yaml = YAML::LoadFile(yaml_path);
     lidar_topic = yaml["common"]["lidar_topic"].as<std::string>();
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     lidar_process->LoadYaml(yaml_path);
     init_sub_pub(nh);
 
-    // std::thread measurment_process();
+    std::thread lio_thread(&ctlio::LidarOdom::run, lio);
 
     ros::spin();
     return 0;

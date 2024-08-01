@@ -1,15 +1,16 @@
 #pragma once
 #include <glog/logging.h>
 #include <ros/ros.h>
-#include <sophus/se3.hpp>
 #include <yaml-cpp/yaml.h>
 #include <condition_variable>
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <sophus/se3.hpp>
 #include <string>
 #include <vector>
 #include "ekf_utils/static_imu_init.hh"
+#include "eskf/eskf.hpp"
 #include "lio/lio_utils.hh"
 #include "sensors/imu.hh"
 #include "sensors/point_types.hh"
@@ -33,6 +34,8 @@ class LidarOdom {
    private:
     void loadOptions(const std::string& config_file);
     std::vector<MeasureGroup> getMeasurments();
+    void processMeasurements(const MeasureGroup& meas);
+    void TryInitIMU();
 
    private:
     LioOptions options_;
@@ -53,5 +56,9 @@ class LidarOdom {
     std::deque<IMUPtr> imu_buff;
     std::deque<std::vector<point3D>> lidar_buffer;
     std::deque<std::pair<double, double>> time_buffer;
+
+    MeasureGroup mearsure_;
+    bool imu_need_init_ = true;
+    ESKFD eskf_;
 };
 }  // namespace ctlio

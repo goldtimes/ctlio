@@ -76,6 +76,12 @@ void LidarOdom::run() {
         //     LOG(INFO) << "meas size:" << measurments.size();
         // }
         // 处理传感器数据
+        for (const auto& meas : measurments) {
+            Timer::Evaluate([&]() { processMeasurements(meas); }, "processMeasurements");
+        }
+        // {
+
+        // }
     }
 }
 std::vector<MeasureGroup> LidarOdom::getMeasurments() {
@@ -99,12 +105,11 @@ std::vector<MeasureGroup> LidarOdom::getMeasurments() {
         double imu_time = imu_buff.front()->timestamp_;
         meas.imu_datas.clear();
         while (!imu_buff.empty() && imu_time < meas.lidar_end_time) {
-            
             imu_time = imu_buff.front()->timestamp_;
-            if (imu_time < meas.lidar_begin_time) {
-                imu_buff.pop_front();
-                continue;
-            }
+            // if (imu_time < meas.lidar_begin_time) {
+            //     imu_buff.pop_front();
+            //     continue;
+            // }
             if (imu_time > meas.lidar_end_time) {
                 break;
             }
@@ -116,6 +121,38 @@ std::vector<MeasureGroup> LidarOdom::getMeasurments() {
             meas.imu_datas.push_back(imu_buff.front());
         }
         measure_group.push_back(meas);
+    }
+}
+
+void LidarOdom::processMeasurements(const MeasureGroup& meas) {
+    mearsure_ = meas;
+    if (imu_need_init_) {
+        TryInitIMU();
+        return;
+    }
+    // 初始化成功之后，开始predict
+    // Timer::Evaluate([&]() { Predict() }, "Predict()");
+    // 初始化状态
+    // 松耦合得到的pose
+    // 融合到eskf
+    // 可视化
+}
+
+// 如何IMU非水平放置呢？
+void LidarOdom::TryInitIMU() {
+    // 将数据放到static_imu_init中
+    // std::cout << "TryInitIMU" << std::endl;
+    // LOG(INFO) << "imu size: " << mearsure_.imu_datas.size();
+    for (const auto& imu : mearsure_.imu_datas) {
+        static_imu_init.AddImu(*imu);
+    }
+    // 初始化成功
+    if (static_imu_init.InitSuccess()) {
+        // // 设置eskf的初始状态
+        ESKFD::Options eskf_options;
+        eskf_.SetInitialConditions(eskf_options, static_imu_init.GetInitBg(), static_imu_init.GetInitBa(),
+                                   static_imu_init.GetGravity());
+        imu_need_init_ = false;
     }
 }
 

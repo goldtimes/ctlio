@@ -1,5 +1,4 @@
 #include "ekf_utils/static_imu_init.hh"
-#include <glog/logging.h>
 #include "tools/math_utils.hh"
 
 namespace ctlio {

@@ -1,4 +1,5 @@
 #pragma once
+#include <glog/logging.h>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <deque>
@@ -29,28 +30,31 @@ class StaticImuInit {
     StaticImuInit(InitOptions options = InitOptions()) : options_(options) {
     }
 
-    void AddImu(const IMU& imu) {
+    bool AddImu(const IMU& imu) {
         if (init_success_) {
-            return;
+            return false;
         }
         if (options_.use_odom && !is_static_) {
             init_imu_queue_.clear();
+            return false;
         }
         // 静止且第一帧开始初始化
         if (init_imu_queue_.empty()) {
             init_start_time = imu.timestamp_;
-            return;
         }
         init_imu_queue_.push_back(imu);
         curr_time = imu.timestamp_;
         double init_time = curr_time - init_start_time;
+        // LOG(INFO) << "init_time:" << init_time;
         if (init_time > options_.init_time_seconds) {
             TryInit();
         }
         while (init_imu_queue_.size() > options_.max_imu_size) {
             init_imu_queue_.pop_front();
         }
+        return false;
     }
+
     void AddOdom(const Odom& odom) {
         if (init_success_) {
             return;
@@ -67,6 +71,19 @@ class StaticImuInit {
     }
 
     bool TryInit();
+    bool InitSuccess() const {
+        return init_success_;
+    }
+
+    Eigen::Vector3d GetInitBg() const {
+        return init_bg_;
+    }
+    Eigen::Vector3d GetInitBa() const {
+        return init_ba_;
+    }
+    Eigen::Vector3d GetGravity() const {
+        return gravity_;
+    }
 
    private:
     InitOptions options_;

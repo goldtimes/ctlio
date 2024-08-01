@@ -13,12 +13,15 @@ namespace ctlio {
 /**
  * @brief 变量顺序p v q bg ba gravity 18维变量
  */
+template <typename T = double>
 class ESKF {
    public:
     using SO3 = Sophus::SO3d;
     using SE3 = Sophus::SE3d;
 
     struct Options {
+        Options() {
+        }
         double imu_dt_ = 0.01;
         double odom_dt_ = 0.1;
 
@@ -142,7 +145,10 @@ class ESKF {
     NavState navi_state;
 };
 
-bool ESKF::Predict(const IMU& imu) {
+using ESKFD = ESKF<double>;
+
+template <typename T>
+bool ESKF<T>::Predict(const IMU& imu) {
     assert(imu.timestamp_ >= current_time_);
     double dt = imu.timestamp_ - current_time_;
     if (dt > 5 * options_.imu_dt_ || dt < 0) {
@@ -178,7 +184,8 @@ bool ESKF::Predict(const IMU& imu) {
     return true;
 }
 
-bool ESKF::ObserveSE3(const SE3& pose, double trans_noise = 0.1, double ang_noise = 1.0 * kDEG2RAD) {
+template <typename T>
+bool ESKF<T>::ObserveSE3(const SE3& pose, double trans_noise, double ang_noise) {
     Eigen::Matrix<double, 6, 18> H = Eigen::Matrix<double, 6, 18>::Zero();
     // p 对 p
     H.block<3, 3>(0, 0) = Eigen::Matrix<double, 3, 3>::Identity();
@@ -199,7 +206,9 @@ bool ESKF::ObserveSE3(const SE3& pose, double trans_noise = 0.1, double ang_nois
     UpdateAndReset();
     return true;
 }
-bool ESKF::ObserveSE3(const SE3& pose, const Eigen::Matrix<double, 6, 1>& noise) {
+
+template <typename T>
+bool ESKF<T>::ObserveSE3(const SE3& pose, const Eigen::Matrix<double, 6, 1>& noise) {
     Eigen::Matrix<double, 6, 18> H = Eigen::Matrix<double, 6, 18>::Zero();
     // p 对 p
     H.block<3, 3>(0, 0) = Eigen::Matrix<double, 3, 3>::Identity();
@@ -220,7 +229,9 @@ bool ESKF::ObserveSE3(const SE3& pose, const Eigen::Matrix<double, 6, 1>& noise)
     UpdateAndReset();
     return true;
 }
-bool ESKF::ObserveWheelSpeed(const Odom& odom) {
+
+template <typename T>
+bool ESKF<T>::ObserveWheelSpeed(const Odom& odom) {
     assert(odom.timestamp_ >= current_time_);
     // 速度对18维的观测
     Eigen::Matrix<double, 3, 18> H = Eigen::Matrix<double, 3, 18>::Zero();

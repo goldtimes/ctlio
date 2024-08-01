@@ -130,8 +130,11 @@ void LidarOdom::processMeasurements(const MeasureGroup& meas) {
         TryInitIMU();
         return;
     }
+    LOG(INFO) << "process frame: " << index_frame;
+    // 保存一帧之间的imu积分姿态前，清空之前的数据
+    imu_states_.clear();
     // 初始化成功之后，开始predict
-    // Timer::Evaluate([&]() { Predict() }, "Predict()");
+    Timer::Evaluate([&]() { Predict(); }, "Predict()");
     // 初始化状态
     // 松耦合得到的pose
     // 融合到eskf
@@ -153,6 +156,36 @@ void LidarOdom::TryInitIMU() {
         eskf_.SetInitialConditions(eskf_options, static_imu_init.GetInitBg(), static_imu_init.GetInitBa(),
                                    static_imu_init.GetGravity());
         imu_need_init_ = false;
+    }
+}
+
+void LidarOdom::Predict() {
+    // 对measgroup_中的所有imu数据去积分，需要保存这帧雷达之间的body姿态信息
+    imu_states_.emplace_back(eskf_.GetNominalState());  // 保存开始时刻的姿态
+    double lidar_end_time = mearsure_.lidar_end_time;
+    for (const auto& imu : mearsure_.imu_datas) {
+        double processed_imu_time = imu->timestamp_;
+        if (processed_imu_time <= lidar_end_time) {
+            // if (last_imu == nullptr) {
+            //     last_imu = imu;
+            // }
+            eskf_.Predict(*imu);
+            imu_states_.emplace_back(eskf_.GetNominalState());
+            last_imu = imu;
+        } else {
+            // 做插值
+            double dt_1 = processed_imu_time - lidar_end_time;
+            double dt_2 = lidar_end_time - last_imu->timestamp_;
+            double w1 = dt_1 / (dt_1 + dt_2);
+            double w2 = dt_2 / (dt_1 + dt_2);
+            // 加速度插值
+            Eigen::Vector3d acc_tmp = w1 * last_imu->acc_ + w2 * imu->acc_;
+            Eigen::Vector3d gyro_tmp = w1 * last_imu->gyro_ + w2 * imu->gyro_;
+            IMUPtr imu_interp = std::make_shared<IMU>(lidar_end_time, gyro_tmp, acc_tmp);
+            eskf_.Predict(*imu_interp);
+            imu_states_.emplace_back(eskf_.GetNominalState());
+            last_imu = imu_interp;
+        }
     }
 }
 

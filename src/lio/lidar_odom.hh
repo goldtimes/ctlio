@@ -36,9 +36,13 @@ class LidarOdom {
     std::vector<MeasureGroup> getMeasurments();
     void processMeasurements(const MeasureGroup& meas);
     void TryInitIMU();
+    void Predict();
 
    private:
     LioOptions options_;
+
+    int index_frame;
+    IMUPtr last_imu;
 
     StaticImuInit static_imu_init;
     double lidar_imu_dt;
@@ -60,5 +64,6 @@ class LidarOdom {
     MeasureGroup mearsure_;
     bool imu_need_init_ = true;
     ESKFD eskf_;
+    std::vector<NavState> imu_states_;
 };
 }  // namespace ctlio

@@ -4,6 +4,7 @@ namespace ctlio {
 LidarOdom::LidarOdom() {
     //
     // current_state = std::make_shared<State>();
+    cloud_world.reset(new pcl::PointCloud<pcl::PointXYZI>());
 }
 
 bool LidarOdom::init(const std::string& config_file) {
@@ -148,8 +149,7 @@ void LidarOdom::processMeasurements(const MeasureGroup& meas) {
                 BuildFrame(points_lidar, current_state, measurement_.lidar_begin_time, measurement_.lidar_end_time);
         },
         "build frame");
-
-    // 融合到eskf
+    Timer::Evaluate([&]() { PoseEstimation(p_frame); }, "pose estimate");
     // 可视化
 }
 
@@ -240,6 +240,93 @@ void LidarOdom::Undistort(std::vector<point3D>& points) {
                              [](const NavState& s) { return s.GetSE3(); }, Ti, match);
         p.point = T_IL.inverse() * T_end.inverse() * Ti * T_IL * p.point;
     }
+}
+void LidarOdom::PoseEstimation(std::shared_ptr<CloudFrame> frame) {
+    // 第一帧直接跳过
+    if (index_frame > 1) {
+    }
+    // 添加点到voxelmap中
+    Timer::Evaluate([&]() { map_incremental(frame); }, "update map");
+    // 删除过远的体素
+    Timer::Evaluate([&]() { lasermap_fov_segment(); }, "fov segments");
+}
+
+void LidarOdom::map_incremental(std::shared_ptr<CloudFrame> frame) {
+    // 将cloud frame中的世界坐标系下的地图点放到voxelmap中
+    for (const auto& point3D_tmp : frame->points_world) {
+        int min_num_points = 0;
+        AddPointToMap(voxel_map, point3D_tmp.point_world, point3D_tmp.intensity, options_.size_voxel_map,
+                      options_.max_num_points_in_voxel, options_.min_distance_points, 0);
+    }
+    // vis
+    // 清空该帧点云
+    cloud_world->clear();
+}
+void LidarOdom::lasermap_fov_segment() {
+    Eigen::Vector3d laser_location = current_state->translation;
+    std::vector<Voxel> voxels_to_erase;
+    for (auto& pair : voxel_map) {
+        // 取出第一个点
+        Eigen::Vector3d pt = pair.second.points[0];
+        if ((pt - laser_location).squaredNorm() > (options_.max_distance * options_.max_distance)) {
+            voxels_to_erase.push_back(pair.first);
+        }
+    }
+    for (auto& voxel : voxels_to_erase) {
+        voxel_map.erase(voxel);
+    }
+    voxels_to_erase.clear();
+}
+
+void LidarOdom::AddPointToMap(VoxelHashMap& map, const Eigen::Vector3d& point, const double intensity,
+                              double voxel_size, int max_num_in_voxel, double min_distance_points, int min_num_points) {
+    // 体素化
+    short coord_x = static_cast<short>(point.x() / voxel_size);
+    short coord_y = static_cast<short>(point.y() / voxel_size);
+    short coord_z = static_cast<short>(point.z() / voxel_size);
+    Voxel voxel_grid(coord_x, coord_y, coord_z);
+    VoxelHashMap::iterator iter = map.find(voxel_grid);
+    if (iter != map.end()) {
+        // 获取voxelblcok
+        auto& voxel_block = iter.value();
+        // 体素的点云没有达到最大值
+        if (!voxel_block.IsFull()) {
+            // 记录体素中的点到point的最小距离
+            double sq_dist_min_to_points = 10 * voxel_size * voxel_size;
+            // 计算体素中的点到该点的距离平方
+            for (int i = 0; i < voxel_block.GetNumPoints(); ++i) {
+                auto& voxel_point = voxel_block.points[i];
+                double sq_dist = (voxel_point - point).squaredNorm();
+                if (sq_dist < sq_dist_min_to_points) {
+                    sq_dist_min_to_points = sq_dist;
+                }
+            }
+            if (sq_dist_min_to_points > (min_distance_points * min_distance_points)) {
+                if (min_num_points <= 0 || voxel_block.GetNumPoints() >= min_num_points) {
+                    voxel_block.AddPoint(point);
+                }
+            }
+        }
+    } else {
+        // 创建voxel_block
+        if (min_num_points <= 0) {
+            VoxelBlock block(max_num_in_voxel);
+            block.AddPoint(point);
+            map[voxel_grid] = std::move(block);
+        }
+    }
+    // add point to cloud world
+    AddPointToCloud(cloud_world, point, intensity);
+}
+
+void LidarOdom::AddPointToCloud(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud, const Eigen::Vector3d& point,
+                                const double intensity) {
+    pcl::PointXYZI cloud_point;
+    cloud_point.x = point.x();
+    cloud_point.y = point.y();
+    cloud_point.z = point.z();
+    cloud_point.intensity = intensity;
+    cloud->push_back(cloud_point);
 }
 
 }  // namespace ctlio

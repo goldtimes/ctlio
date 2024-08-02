@@ -24,7 +24,7 @@ class NavState {
         : timestamp_(time), R_(pose.so3()), p_(pose.translation()), v_(vel) {
     }
 
-    Sophus::SE3d GetSE3() {
+    Sophus::SE3d GetSE3() const {
         return SE3(R_, p_);
     }
 

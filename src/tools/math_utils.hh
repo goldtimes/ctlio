@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <numeric>
+#include <sophus/se3.hpp>
 namespace ctlio {
 constexpr double kDEG2RAD = M_PI / 180.0;
 constexpr double kRAD2DEG = 180 / M_PI;
@@ -45,6 +46,60 @@ void ComputeMeanAndCov(const C& datas, Eigen::Matrix<double, dim, 1>& mean, Eige
                               return sum += v * v.transpose();
                           }) /
           (len - 1);
+}
+
+/**
+ * @brief pose插值算法
+ * @param T 数据类型
+ * @param C 容器类型
+ * @param FT 获取时间函数
+ * @param FP 获取body姿态的函数
+ */
+template <typename T, typename C, typename FT, typename FP>
+bool PoseInterp(double query_time, C&& datas, FT&& take_time_func, FP&& take_pose_func, Sophus::SE3d& result,
+                T& best_match, float time_th = 0.5) {
+    if (datas.empty()) {
+        return false;
+    }
+    double end_time = take_time_func(*datas.rbegin());
+    if (query_time > end_time) {
+        // 0.5s的阈值
+        if (query_time < (end_time + 0.5)) {
+            // 直接取最后一个pose
+            result = take_pose_func(*datas.rbegin());
+            best_match = datas.rbegin();
+            return true;
+        }
+        return false;
+    }
+    // 找到query_time的时间戳
+    auto match_iter = datas.begin();
+    while (auto iter = datas.begin(); iter != datas.end(), iter++) {
+        auto next_iter = iter;
+        next_iter++;
+        if (query_time > take_time_func(*iter) && query_time <= take_time_func(next_iter)) {
+            match_iter = iter;
+            break;
+        }
+    }
+    auto match_iter_next = match_iter;
+    match_iter_next++;
+    double dt = take_time_func(*match_iter_next) - take_time_func(match_iter);
+    // 防止dt为0
+    double alpha = (query_time - take_time_func(match_iter)) / (dt + 0.0000000001);
+    // dt = 0;
+    if (std::fabs(dt) < 1e-6) {
+        best_match = *match_iter;
+        result = take_pose_func(*match_iter);
+        return true;
+    }
+    // 插值
+    Sophus::SE3d pose_first = take_pose_func(*match_iter);
+    Sophus::SE3d pose_second = take_pose_func(*match_iter_next);
+    result = {pose_first.unit_quaternion().slerp(alpha, pose_second.unit_quaternion()),
+              pose_first.translation() * (1 - alpha) + pose_second.translation() * alpha};
+    best_match = alpha < 0.5 ? *match_iter : *match_iter_next;
+    return true;
 }
 
 }  // namespace ctlio

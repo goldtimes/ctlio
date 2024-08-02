@@ -37,6 +37,10 @@ class LidarOdom {
     void processMeasurements(const MeasureGroup& meas);
     void TryInitIMU();
     void Predict();
+    std::shared_ptr<CloudFrame> BuildFrame(const std::vector<point3D>& points_lidar,
+                                           std::shared_ptr<State> current_state, double frame_begin_time,
+                                           double frame_end_time);
+    void Undistort(std::vector<point3D>& points);
 
    private:
     LioOptions options_;
@@ -61,9 +65,11 @@ class LidarOdom {
     std::deque<std::vector<point3D>> lidar_buffer;
     std::deque<std::pair<double, double>> time_buffer;
 
-    MeasureGroup mearsure_;
+    MeasureGroup measurement_;
     bool imu_need_init_ = true;
     ESKFD eskf_;
     std::vector<NavState> imu_states_;
+
+    std::shared_ptr<State> current_state;
 };
 }  // namespace ctlio

@@ -3,6 +3,7 @@
 namespace ctlio {
 LidarOdom::LidarOdom() {
     //
+    // current_state = std::make_shared<State>();
 }
 
 bool LidarOdom::init(const std::string& config_file) {
@@ -125,7 +126,7 @@ std::vector<MeasureGroup> LidarOdom::getMeasurments() {
 }
 
 void LidarOdom::processMeasurements(const MeasureGroup& meas) {
-    mearsure_ = meas;
+    measurement_ = meas;
     if (imu_need_init_) {
         TryInitIMU();
         return;
@@ -136,7 +137,18 @@ void LidarOdom::processMeasurements(const MeasureGroup& meas) {
     // 初始化成功之后，开始predict
     Timer::Evaluate([&]() { Predict(); }, "Predict()");
     // 初始化状态
-    // 松耦合得到的pose
+    // initState
+    std::vector<point3D> points_lidar;
+    points_lidar.insert(points_lidar.end(), measurement_.lidar_.begin(), measurement_.lidar_.end());
+    // scan-to-submap
+    std::shared_ptr<CloudFrame> p_frame;
+    Timer::Evaluate(
+        [&]() {
+            p_frame =
+                BuildFrame(points_lidar, current_state, measurement_.lidar_begin_time, measurement_.lidar_end_time);
+        },
+        "build frame");
+
     // 融合到eskf
     // 可视化
 }
@@ -145,8 +157,8 @@ void LidarOdom::processMeasurements(const MeasureGroup& meas) {
 void LidarOdom::TryInitIMU() {
     // 将数据放到static_imu_init中
     // std::cout << "TryInitIMU" << std::endl;
-    // LOG(INFO) << "imu size: " << mearsure_.imu_datas.size();
-    for (const auto& imu : mearsure_.imu_datas) {
+    // LOG(INFO) << "imu size: " << measurement_.imu_datas.size();
+    for (const auto& imu : measurement_.imu_datas) {
         static_imu_init.AddImu(*imu);
     }
     // 初始化成功
@@ -162,8 +174,8 @@ void LidarOdom::TryInitIMU() {
 void LidarOdom::Predict() {
     // 对measgroup_中的所有imu数据去积分，需要保存这帧雷达之间的body姿态信息
     imu_states_.emplace_back(eskf_.GetNominalState());  // 保存开始时刻的姿态
-    double lidar_end_time = mearsure_.lidar_end_time;
-    for (const auto& imu : mearsure_.imu_datas) {
+    double lidar_end_time = measurement_.lidar_end_time;
+    for (const auto& imu : measurement_.imu_datas) {
         double processed_imu_time = imu->timestamp_;
         if (processed_imu_time <= lidar_end_time) {
             // if (last_imu == nullptr) {
@@ -186,6 +198,47 @@ void LidarOdom::Predict() {
             imu_states_.emplace_back(eskf_.GetNominalState());
             last_imu = imu_interp;
         }
+    }
+}
+
+/**
+ * @brief 去畸变以及将点云转换到body坐标系下
+ */
+std::shared_ptr<CloudFrame> LidarOdom::BuildFrame(const std::vector<point3D>& points_lidar,
+                                                  std::shared_ptr<State> current_state, double frame_begin_time,
+                                                  double frame_end_time) {
+    std::vector<point3D> frame(points_lidar);
+    if (index_frame < 2) {
+        // 第一帧
+        for (auto& point : frame) {
+            point.alpha_time = 1.0;
+        }
+    }
+    Undistort(frame);
+    // 转换到世界系下的点云
+    for (auto& point_tmp : frame) {
+        transformPoint(MotionCompensation::CONSTANT_VELOCITY, point_tmp, current_state->rotation_begin,
+                       current_state->translation_begin, current_state->rotation, current_state->translation,
+                       T_IL.rotationMatrix(), T_IL.translation());
+    }
+    std::shared_ptr<CloudFrame> p_frame = std::make_shared<CloudFrame>(frame, points_lidar, current_state);
+    p_frame->dt_offset = 0;
+    p_frame->frame_id = index_frame;
+    return p_frame;
+}
+
+void LidarOdom::Undistort(std::vector<point3D>& points) {
+    // 雷达帧的最后时刻姿态
+    auto imu_state = eskf_.GetNominalState();
+    Sophus::SE3d T_end = Sophus::SE3d(imu_state.R_, imu_state.p_);
+    // 将所有点转换到最后时刻的状态
+    for (auto& p : points) {
+        Sophus::SE3d Ti = T_end;
+        NavState match;
+        // T_IL * p.point 转换到imu坐标系，然后计算i时刻的坐标，最后转换到末尾时刻，最后转回雷达坐标系
+        PoseInterp<NavState>(p.timestamp, imu_states_, [](const NavState& s) { return s.timestamp_; },
+                             [](const NavState& s) { return s.GetSE3(); }, Ti, match);
+        p.point = T_IL.inverse() * T_end.inverse() * Ti * T_IL * p.point;
     }
 }
 

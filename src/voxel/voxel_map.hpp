@@ -20,8 +20,8 @@ struct Voxel {
         return Voxel(x_coor, y_coor, z_coor);
     }
     // 比较
-    inline bool operator<(const Voxel& other) const {
-    }
+    // inline bool operator<(const Voxel& other) const {
+    // }
     // ==
     bool operator==(const Voxel& other) const {
         return other.x == x && other.y == y && other.z == z;

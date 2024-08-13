@@ -3,10 +3,13 @@
 #include <Eigen/Dense>
 #include <deque>
 #include <memory>
+#include <sophus/se3.hpp>
+#include <tr1/unordered_map>
 #include <vector>
 #include "sensors/imu.hh"
 #include "sensors/point_types.hh"
 #include "tools/lidar_utils.hh"
+#include "voxel/voxel_map.hpp"
 
 namespace ctlio {
 
@@ -46,7 +49,7 @@ class State {
     State(const Eigen::Quaterniond &rotation_, const Eigen::Vector3d &translation_, const Eigen::Vector3d &velocity_,
           const Eigen::Vector3d &ba_, const Eigen::Vector3d &bg_);
 
-    State::State(const std::shared_ptr<State> state_temp, bool copy);
+    State(const std::shared_ptr<State> state_temp, bool copy);
 };
 
 // 关键帧的定义
@@ -63,7 +66,7 @@ class CloudFrame {
     double dt_offset;
     bool success;
 
-    CloudFrame(std::vector<point3D> &points_world_tmp, std::vector<point3D> &points_lidar_tmp,
+    CloudFrame(const std::vector<point3D> &points_world_tmp, const std::vector<point3D> &points_lidar_tmp,
                std::shared_ptr<State> p_state_);
 
     CloudFrame(std::shared_ptr<CloudFrame> p_cloud_frame);
@@ -74,5 +77,58 @@ class CloudFrame {
 void transformPoint(MotionCompensation motion_compensation, point3D &point, const Eigen::Quaterniond &rotation_begin,
                     const Eigen::Vector3d &trans_begin, const Eigen::Quaterniond &rotation_end,
                     const Eigen::Vector3d &trans_end, const Eigen::Matrix3d &R_IL, const Eigen::Vector3d &t_IL);
+
+void GridSampling(const std::vector<point3D> &cloud_in, std::vector<point3D> &keypoints, double size_voxel_subsampling);
+void SubSampleFrame(std::vector<point3D> &cloud_in, double size_voxel);
+double AngularDistance(const Eigen::Vector3d &qa, const Eigen::Vector3d &qb);
+double AngularDistance(const Eigen::Quaterniond &qa, const Eigen::Quaterniond &qb);
+
+class Math {
+   public:
+    template <typename Derived>
+    static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta) {
+        using Scalar_t = typename Derived::Scalar;
+        // 将旋转矢量转换为四元素
+        Eigen::Quaternion<Scalar_t> dq;
+
+        // Eigen::Quaternion<Scalar_t> dq;
+        // Eigen::Matrix<Scalar_t, 3, 1> half_theta = theta;
+        // half_theta /= static_cast<Scalar_t>(2.0);
+        // dq.w() = static_cast<Scalar_t>(1.0);
+        // dq.x() = half_theta.x();
+        // dq.y() = half_theta.y();
+        // dq.z() = half_theta.z();
+        // dq.normalize();
+        // return dq;
+
+        Scalar_t theta_norm = theta.norm();
+        if (theta_norm > static_cast<Scalar_t>(0.0)) {
+            Scalar_t half_theta = theta_norm / static_cast<Scalar_t>(2.0);
+            Eigen::Matrix<Scalar_t, 3, 1> u = theta / theta_norm;
+            dq.w() = std::cos(half_theta);
+            dq.x() = std::sin(half_theta) * u.x();
+            dq.y() = std::sin(half_theta) * u.y();
+            dq.z() = std::sin(half_theta) * u.z();
+        } else {
+            dq.w() = static_cast<Scalar_t>(1.0);
+            dq.x() = static_cast<Scalar_t>(0.0);
+            dq.y() = static_cast<Scalar_t>(0.0);
+            dq.z() = static_cast<Scalar_t>(0.0);
+        }
+        dq.normalize();
+        return dq;
+    }
+
+    template <typename Derived>
+    static Eigen::Matrix<typename Derived::Scalar, 3, 3> skew(const Eigen::MatrixBase<Derived> &vect) {
+        Eigen::Matrix<typename Derived::Scalar, 3, 3> mat;
+        // clang-format off
+        mat << typename Derived::Scalar(0), -mat(2), mat(1),
+                mat(2), typename Derived::Scalar(0), -mat(0),
+                -mat(1), mat(0), typename Derived::Scalar(0);
+        // clang-format on
+        return mat;
+    }
+};
 
 }  // namespace ctlio

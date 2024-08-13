@@ -7,6 +7,11 @@
 #include <pcl/impl/pcl_base.hpp>
 
 namespace ctlio {
+
+using PointType = pcl::PointXYZ;
+using PointCloud = pcl::PointCloud<PointType>;
+using CloudPtr = PointCloud::Ptr;
+
 struct FullPointType {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     PCL_ADD_POINT4D

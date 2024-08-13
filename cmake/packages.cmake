@@ -59,7 +59,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 link_libraries(${CERES_LIBRARY_DIRS})
 
 #ceres
-find_package(Ceres 2 REQUIRED)
+find_package(Ceres REQUIRED)
 include_directories( ${CERES_INCLUDE_DIRS})
 link_directories(${CERES_LIBRARY_DIRS})
 

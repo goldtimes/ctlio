@@ -52,7 +52,7 @@ struct LioOptions {
     int min_number_neighbors;
 
     bool estimate_normal_from_neighborhood;
-    int power_planarity;
+    double power_planarity;
     int num_closest_neighbors;
     // 构造的残差数
     int max_num_residuals;

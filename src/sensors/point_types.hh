@@ -8,7 +8,7 @@
 
 namespace ctlio {
 
-using PointType = pcl::PointXYZ;
+using PointType = pcl::PointXYZI;
 using PointCloud = pcl::PointCloud<PointType>;
 using CloudPtr = PointCloud::Ptr;
 

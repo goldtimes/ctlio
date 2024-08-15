@@ -11,8 +11,9 @@ common:
 
 lio:
   extrinsic_est_en: true
-  extrinsic_T: [ 0.0, 0.0, -0.0]
-  extrinsic_R: [ 1, 0, 0,  0, 1, 0,  0, 0, 1]
+  # robosense
+  extrinsic_T: [ 0.065, 0.0, -0.05]
+  extrinsic_R: [ 1, 0, 0, 0, -1, 0, 0, 0, -1]
   delay_time: 0.15
 
 odometry:

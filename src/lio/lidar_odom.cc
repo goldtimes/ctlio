@@ -27,11 +27,15 @@ bool LidarOdom::init(const std::string& config_file) {
                       extr_r[3], extr_r[4], extr_r[5], 
                       extr_r[6], extr_r[7], extr_r[8];
     // clang-format on
+    std::cout << "t_IL:\n" << t_lidar_in_imu << std::endl;
+    std::cout << "r_IL:\n" << r_lidar_in_imu << std::endl;
     Eigen::Quaterniond q_IL(r_lidar_in_imu);
     q_IL.normalize();
     P_lidar_in_imu = t_lidar_in_imu;
     R_lidar_to_imu = r_lidar_in_imu;
     T_IL = Sophus::SE3d(q_IL, t_lidar_in_imu);
+    LidarPlaneNormalFactor::q_IL = T_IL.rotationMatrix();
+    LidarPlaneNormalFactor::t_IL = P_lidar_in_imu;
     return true;
 }
 
@@ -84,8 +88,8 @@ void LidarOdom::loadOptions(const std::string& config_file) {
     // options_.beta_orientation_consistency = yaml["odometry"]["beta_orientation_consistency"].as<double>();
     // options_.beta_constant_velocity = yaml["odometry"]["beta_constant_velocity"].as<double>();
     // options_.beta_small_velocity = yaml["odometry"]["beta_small_velocity"].as<double>();
-    options_.thres_rotation_norm = yaml["odometry"]["thres_orientation_norm"].as<double>();
-    options_.thres_trans_norm = yaml["odometry"]["thres_translation_norm"].as<double>();
+    options_.thres_rotation_norm = yaml["odometry"]["thres_rotation_norm"].as<double>();
+    options_.thres_trans_norm = yaml["odometry"]["thres_trans_norm"].as<double>();
 }
 
 void LidarOdom::pushImu(IMUPtr& imu_msg) {
@@ -343,6 +347,8 @@ void LidarOdom::map_incremental(std::shared_ptr<CloudFrame> frame) {
                       options_.max_num_points_in_voxel, options_.min_distance_points, 0);
     }
     // vis
+    std::string laser_topic = "laser";
+    pub_cloud_to_ros(laser_topic, cloud_world, frame->time_frame_end);
     // 清空该帧点云
     cloud_world->clear();
 }

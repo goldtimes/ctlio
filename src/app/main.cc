@@ -109,10 +109,10 @@ int main(int argc, char** argv) {
             transform.setRotation(q);
             if (topic_name == "laser") {
                 // 发布tf
-                tf_.sendTransform(tf::StampedTransform(transform, ros::Time().fromSec(timestamp), "odom", "base_link"));
+                tf_.sendTransform(tf::StampedTransform(transform, ros::Time().fromSec(timestamp), "map", "base_link"));
                 // odom
                 nav_msgs::Odometry laserOdometry;
-                laserOdometry.header.frame_id = "odom";
+                laserOdometry.header.frame_id = "map";
                 laserOdometry.child_frame_id = "base_link";
                 laserOdometry.header.stamp = ros::Time().fromSec(timestamp);
                 laserOdometry.pose.pose.position.x = pose.translation().x();
@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
                 laser_pose.pose = laserOdometry.pose.pose;
                 lidar_path.header.stamp = laserOdometry.header.stamp;
                 lidar_path.poses.push_back(laser_pose);
-                lidar_path.header.frame_id = "odom";
+                lidar_path.header.frame_id = "map";
                 pub_lidar_path.publish(lidar_path);
             }
 

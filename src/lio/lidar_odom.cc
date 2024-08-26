@@ -306,7 +306,7 @@ std::shared_ptr<CloudFrame> LidarOdom::BuildFrame(const std::vector<point3D>& po
     // 转换到世界系下的点云
     for (auto& point_tmp : frame) {
         transformPoint(MotionCompensation::CONSTANT_VELOCITY, point_tmp, current_state->rotation_begin,
-                       current_state->translation_begin, current_state->rotation, current_state->translation,
+                       current_state->rotation, current_state->translation_begin, current_state->translation,
                        T_IL.rotationMatrix(), T_IL.translation());
     }
     std::shared_ptr<CloudFrame> p_frame = std::make_shared<CloudFrame>(frame, points_lidar, current_state);
@@ -531,8 +531,8 @@ void LidarOdom::AddSurfCostFactor(std::vector<ceres::CostFunction*> factors, std
                                   const std::vector<point3D>& keypoints, std::shared_ptr<CloudFrame> frame) {
     auto estimatePointNeightborhood =
         [&](std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>& neighborhoods,
-            Eigen::Vector3d& point_body, double& weight) -> NeightborHood {
-        NeightborHood neightbor = computeNeightborhoodsDistribution(neighborhoods);
+            Eigen::Vector3d& point_body, double& weight) -> Neighborhood {
+        Neighborhood neightbor = computeNeightborhoodsDistribution(neighborhoods);
         // planarity 平面性
         weight = std::pow(neightbor.a2D, options_.power_planarity);
         if (neightbor.normal.dot(frame->p_state->translation_begin - point_body) < 0) {
@@ -663,9 +663,9 @@ std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> LidarOdo
 }
 
 // 把临近的点都考虑进来，计算点的均值，利用PCA的主成分分析
-NeightborHood LidarOdom::computeNeightborhoodsDistribution(
+Neighborhood LidarOdom::computeNeightborhoodsDistribution(
     std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>& neighborhoods) {
-    NeightborHood neighborhood;
+    Neighborhood neighborhood;
     // 重心
     Eigen::Vector3d barycenter(0, 0, 0);
     for (const auto& point : neighborhoods) {

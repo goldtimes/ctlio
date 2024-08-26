@@ -151,7 +151,7 @@ template <typename T>
 bool ESKF<T>::Predict(const IMU& imu) {
     assert(imu.timestamp_ >= current_time_);
     double dt = imu.timestamp_ - current_time_;
-    if (dt > 5 * options_.imu_dt_ || dt < 0) {
+    if (dt > (5 * options_.imu_dt_) || dt < 0) {
         LOG(INFO) << "skip this imu because dt_ = " << dt;
         current_time_ = imu.timestamp_;
         return false;

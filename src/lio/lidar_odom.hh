@@ -118,7 +118,7 @@ class LidarOdom {
     std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>> searchNeighbors(
         VoxelHashMap& map, const Eigen::Vector3d& point_body, int nb_voxel_visited, int size_voxel,
         int num_neighborhoods, int capacity, std::vector<Voxel>* voxels);
-    NeightborHood computeNeightborhoodsDistribution(
+    Neighborhood computeNeightborhoodsDistribution(
         std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>& neighborhoods);
 
    private:

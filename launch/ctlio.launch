@@ -1,4 +1,4 @@
 <launch>
     <!-- <node name="ctlio_node" pkg="ct_lio" type="main_node" output="screen" launch-prefix="xterm -e gdb -ex run args"/> -->
-    <node name="ctlio_node" pkg="ct_lio" type="main_node" output="screen" />
+    <node name="ctlio_node" pkg="ct_lio_learn" type="main_node" output="screen" />
 </launch>

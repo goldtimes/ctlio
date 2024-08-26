@@ -7,7 +7,7 @@ namespace ctlio {
 // 1 残差维度，3待优化的变量维度，4待优化的变量维度
 class LidarPlaneNormalFactor : public ceres::SizedCostFunction<1, 3, 4> {
    public:
-    LidarPlaneNormalFactor(const Eigen::Vector3d &point_lidar, const Eigen::Vector3d norm_vect,
+    LidarPlaneNormalFactor(const Eigen::Vector3d &point_lidar, const Eigen::Vector3d &norm_vect,
                            const double norm_offset, double weight = 1.0);
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const;
 

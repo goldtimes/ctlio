@@ -27,6 +27,7 @@ std::string lidar_topic;
 std::string imu_topic;
 std::shared_ptr<ctlio::LidarProcess> lidar_process;
 ros::Publisher pub_scan;
+ros::Publisher pub_submap;
 ros::Publisher pub_lidar_odom;
 ros::Publisher pub_lidar_path;
 ros::Subscriber lidar_sub;
@@ -86,7 +87,8 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    pub_scan = nh.advertise<sensor_msgs::PointCloud2>("scan", 10);
+    pub_scan = nh.advertise<sensor_msgs::PointCloud2>("laser", 10);
+    pub_submap = nh.advertise<sensor_msgs::PointCloud2>("submap", 10);
     pub_lidar_odom = nh.advertise<nav_msgs::Odometry>("/odom", 100);
     pub_lidar_path = nh.advertise<nav_msgs::Path>("/lidar_path", 10);
 
@@ -97,6 +99,16 @@ int main(int argc, char** argv) {
             cloud_ros_output->header.stamp = ros::Time::now();
             cloud_ros_output->header.frame_id = "map";
             pub_scan.publish(*cloud_ros_output);
+            return true;
+        });
+
+    auto submap_pub_func =
+        std::function<bool(ctlio::CloudPtr & cloud, double time)>([&](ctlio::CloudPtr& cloud, double time) {
+            sensor_msgs::PointCloud2::Ptr cloud_ros_output(new sensor_msgs::PointCloud2());
+            pcl::toROSMsg(*cloud, *cloud_ros_output);
+            cloud_ros_output->header.stamp = ros::Time::now();
+            cloud_ros_output->header.frame_id = "map";
+            pub_submap.publish(*cloud_ros_output);
             return true;
         });
 
@@ -155,6 +167,7 @@ int main(int argc, char** argv) {
     lio->setFunc(cloud_pub_func);
     lio->setFunc(pose_path_pub_func);
     lio->setFunc(data_pub_func);
+    // lio->setFunc(submap_pub_func);
 
     // lidar_process
     lidar_process = std::make_shared<ctlio::LidarProcess>();

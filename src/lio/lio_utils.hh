@@ -2,6 +2,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <deque>
+#include <iostream>
 #include <memory>
 #include <sophus/se3.hpp>
 #include <tr1/unordered_map>
@@ -18,11 +19,16 @@ enum MotionCompensation { NONE = 0, CONSTANT_VELOCITY = 1, ITERATIVE = 2, CONTIN
 
 enum ICPMODEL { POINT_TO_PLANE = 0, CT_POINT_TO_PLANE = 1 };
 
-struct NeightborHood {
+struct Neighborhood {
     Eigen::Vector3d center = Eigen::Vector3d::Zero();
     Eigen::Vector3d normal = Eigen::Vector3d::Zero();
     Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
     double a2D = 1.0;
+
+    friend std::ostream &operator<<(std::ostream &os, const Neighborhood &n) {
+        os << "center:" << n.center.transpose() << ",normal:" << n.normal.transpose() << ",a2D:" << n.a2D << std::endl;
+        return os;
+    }
 };
 
 struct MeasureGroup {
@@ -75,7 +81,7 @@ class CloudFrame {
 };
 
 void transformPoint(MotionCompensation motion_compensation, point3D &point, const Eigen::Quaterniond &rotation_begin,
-                    const Eigen::Vector3d &trans_begin, const Eigen::Quaterniond &rotation_end,
+                    const Eigen::Quaterniond &rotation_end, const Eigen::Vector3d &trans_begin,
                     const Eigen::Vector3d &trans_end, const Eigen::Matrix3d &R_IL, const Eigen::Vector3d &t_IL);
 
 void GridSampling(const std::vector<point3D> &cloud_in, std::vector<point3D> &keypoints, double size_voxel_subsampling);

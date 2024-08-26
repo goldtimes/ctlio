@@ -71,7 +71,7 @@ void CloudFrame::release() {
  */
 
 void transformPoint(MotionCompensation motion_compensation, point3D &point, const Eigen::Quaterniond &rotation_begin,
-                    const Eigen::Vector3d &trans_begin, const Eigen::Quaterniond &rotation_end,
+                    const Eigen::Quaterniond &rotation_end, const Eigen::Vector3d &trans_begin,
                     const Eigen::Vector3d &trans_end, const Eigen::Matrix3d &R_IL, const Eigen::Vector3d &t_IL) {
     Eigen::Vector3d t;
     Eigen::Matrix3d R;
@@ -90,34 +90,38 @@ void transformPoint(MotionCompensation motion_compensation, point3D &point, cons
             t = trans_begin * (1 - alpha_time) + trans_end * alpha_time;
             break;
     }
-    // 转换到body坐标系
+    // 转换到odom坐标系
     point.point_world = R * (R_IL * point.point + t_IL) + t;
 }
 
-void GridSampling(const std::vector<point3D> &cloud_in, std::vector<point3D> &keypoints,
-                  double size_voxel_subsampling) {
-    keypoints.clear();
-    std::vector<point3D> cloud_tmp;
-    // cloud_tmp.resize(cloud_in.size());
-    cloud_tmp.insert(cloud_tmp.end(), cloud_in.begin(), cloud_in.end());
-    SubSampleFrame(cloud_tmp, size_voxel_subsampling);
-    keypoints.insert(keypoints.end(), cloud_tmp.begin(), cloud_tmp.end());
+void GridSampling(const std::vector<point3D> &frame, std::vector<point3D> &keypoints, double size_voxel_subsampling) {
+    keypoints.resize(0);
+    std::vector<point3D> frame_sub;
+    frame_sub.resize(frame.size());
+    for (int i = 0; i < (int)frame_sub.size(); i++) {
+        frame_sub[i] = frame[i];
+    }
+    SubSampleFrame(frame_sub, size_voxel_subsampling);
+    keypoints.reserve(frame_sub.size());
+    for (int i = 0; i < (int)frame_sub.size(); i++) {
+        keypoints.push_back(frame_sub[i]);
+    }
 }
 
-void SubSampleFrame(std::vector<point3D> &cloud_in, double size_voxel) {
+void SubSampleFrame(std::vector<point3D> &frame, double size_voxel) {
     std::tr1::unordered_map<Voxel, std::vector<point3D>, std::hash<Voxel>> grid;
-    for (int i = 0; i < (int)cloud_in.size(); ++i) {
-        short grid_x = static_cast<short>(cloud_in[i].point[0] / size_voxel);
-        short grid_y = static_cast<short>(cloud_in[i].point[1] / size_voxel);
-        short grid_z = static_cast<short>(cloud_in[i].point[2] / size_voxel);
-        Voxel voxel_grid = Voxel(grid_x, grid_y, grid_z);
-        // map不允许key重复的
-        grid[voxel_grid].push_back(cloud_in[i]);
+    for (int i = 0; i < (int)frame.size(); i++) {
+        auto kx = static_cast<short>(frame[i].point[0] / size_voxel);
+        auto ky = static_cast<short>(frame[i].point[1] / size_voxel);
+        auto kz = static_cast<short>(frame[i].point[2] / size_voxel);
+        grid[Voxel(kx, ky, kz)].push_back(frame[i]);
     }
-    cloud_in.resize(0);
-    for (const auto &pair : grid) {
-        if (pair.second.size() > 0) {
-            cloud_in.push_back(pair.second[0]);
+    frame.resize(0);
+    int step = 0;
+    for (const auto &n : grid) {
+        if (n.second.size() > 0) {
+            frame.push_back(n.second[0]);
+            step++;
         }
     }
 }

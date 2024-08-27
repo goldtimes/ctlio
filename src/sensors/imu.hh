@@ -7,7 +7,7 @@ namespace ctlio {
 class IMU {
    public:
     IMU() = default;
-    IMU(double time, const Eigen::Vector3d& acc, const Eigen::Vector3d& gyro)
+    IMU(double time, const Eigen::Vector3d& gyro, const Eigen::Vector3d& acc)
         : timestamp_(time), acc_(acc), gyro_(gyro) {
     }
     double timestamp_;

@@ -78,8 +78,8 @@ void LidarProcess::AviaHandler(const livox_ros_driver::CustomMsg::ConstPtr& msg,
         // 正确的点
         if (((msg->points[i].tag & 0x30) == 0x10 || (msg->points[i].tag & 0x30) == 0x00)) {
             point3D p3d;
-            p3d.point = Eigen::Vector3d(msg->points[i].x, msg->points[i].y, msg->points[i].z);
-            p3d.point_world = p3d.point;
+            p3d.raw_point = Eigen::Vector3d(msg->points[i].x, msg->points[i].y, msg->points[i].z);
+            p3d.point = p3d.raw_point;
             p3d.intensity = msg->points[i].reflectivity;
             p3d.timespan = timespan_;
             p3d.ring = msg->points[i].line;
@@ -131,8 +131,8 @@ void LidarProcess::VelodyneHandler(const sensor_msgs::PointCloud2::Ptr& msg, std
             continue;
         }
         point3D p3d;
-        p3d.point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
-        p3d.point_world = p3d.point;
+        p3d.raw_point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
+        p3d.point = p3d.raw_point;
         p3d.intensity = pl_orig.points[i].intensity;
         p3d.ring = pl_orig.points[i].ring;
         p3d.timespan = timespan_;
@@ -169,8 +169,8 @@ void LidarProcess::OusterHandler(const sensor_msgs::PointCloud2::Ptr& msg, std::
         }
 
         point3D p3d;
-        p3d.point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
-        p3d.point_world = p3d.point;
+        p3d.raw_point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
+        p3d.point = p3d.raw_point;
         p3d.intensity = pl_orig.points[i].intensity;
         p3d.ring = pl_orig.points[i].ring;
         p3d.timespan = timespan_;
@@ -217,8 +217,8 @@ void LidarProcess::PandarHandler(const sensor_msgs::PointCloud2::Ptr& msg, std::
         }
 
         point3D p3d;
-        p3d.point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
-        p3d.point_world = p3d.point;
+        p3d.raw_point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
+        p3d.point = p3d.raw_point;
         p3d.intensity = pl_orig.points[i].intensity;
         p3d.ring = pl_orig.points[i].ring;
         p3d.timespan = timespan_;
@@ -265,8 +265,8 @@ void LidarProcess::RobosenseHandler(const sensor_msgs::PointCloud2::Ptr& msg, st
         }
 
         point3D p3d;
-        p3d.point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
-        p3d.point_world = p3d.point;
+        p3d.raw_point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
+        p3d.point = p3d.raw_point;
         p3d.intensity = pl_orig.points[i].intensity;
         p3d.ring = pl_orig.points[i].ring;
         p3d.timespan = timespan_;
@@ -313,8 +313,8 @@ void LidarProcess::LslidarHandler(const sensor_msgs::PointCloud2::Ptr& msg, std:
         }
 
         point3D p3d;
-        p3d.point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
-        p3d.point_world = p3d.point;
+        p3d.raw_point = Eigen::Vector3d(pl_orig.points[i].x, pl_orig.points[i].y, pl_orig.points[i].z);
+        p3d.point = p3d.raw_point;
         p3d.intensity = pl_orig.points[i].intensity;
         p3d.ring = pl_orig.points[i].ring;
         p3d.timespan = timespan_;

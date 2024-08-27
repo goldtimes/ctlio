@@ -2,16 +2,16 @@
 
 namespace ctlio {
 
-double LidarPlaneNormalFactor::sqrt_info;
-Eigen::Vector3d LidarPlaneNormalFactor::t_IL;
-Eigen::Quaterniond LidarPlaneNormalFactor::q_IL;
+double LidarPlaneNormFactor::sqrt_info;
+Eigen::Vector3d LidarPlaneNormFactor::t_il;
+Eigen::Quaterniond LidarPlaneNormFactor::q_il;
 
-LidarPlaneNormalFactor::LidarPlaneNormalFactor(const Eigen::Vector3d &point_lidar, const Eigen::Vector3d &norm_vect,
-                                               const double norm_offset, double weight)
+LidarPlaneNormFactor::LidarPlaneNormFactor(const Eigen::Vector3d &point_lidar, const Eigen::Vector3d &norm_vect,
+                                           const double norm_offset, double weight)
     : point_lidar_(point_lidar), norm_vect_(norm_vect), norm_offset_(norm_offset), weight_(weight) {
 }
 
-bool LidarPlaneNormalFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+bool LidarPlaneNormFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     // 点到面的距离
     Eigen::Vector3d transaltion(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond rotation(parameters[1][3], parameters[1][0], parameters[1][1], parameters[1][2]);

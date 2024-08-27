@@ -17,65 +17,67 @@ namespace ctlio {
 // 运动去畸变的模式
 enum MotionCompensation { NONE = 0, CONSTANT_VELOCITY = 1, ITERATIVE = 2, CONTINUOUS = 3 };
 
-enum ICPMODEL { POINT_TO_PLANE = 0, CT_POINT_TO_PLANE = 1 };
+enum IcpModel { POINT_TO_PLANE = 0, CT_POINT_TO_PLANE = 1 };
 
 struct Neighborhood {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     Eigen::Vector3d center = Eigen::Vector3d::Zero();
     Eigen::Vector3d normal = Eigen::Vector3d::Zero();
-    Eigen::Matrix3d covariance = Eigen::Matrix3d::Zero();
-    double a2D = 1.0;
-
-    friend std::ostream &operator<<(std::ostream &os, const Neighborhood &n) {
-        os << "center:" << n.center.transpose() << ",normal:" << n.normal.transpose() << ",a2D:" << n.a2D << std::endl;
-        return os;
-    }
+    Eigen::Matrix3d covariance = Eigen::Matrix3d::Identity();
+    double a2D = 1.0;  // Planarity coefficient
 };
 
 struct MeasureGroup {
-    double lidar_begin_time = 0.0;
-    double lidar_end_time = 0.0;
-    std::deque<IMUPtr> imu_datas;  // 一帧之间的imu数据
-    std::vector<point3D> lidar_;   // 雷达数据
+    double lidar_begin_time_ = 0;  // 雷达包的起始时间
+    double lidar_end_time_ = 0;    // 雷达的终止时间
+    std::vector<point3D> lidar_;   // 雷达点云
+    std::deque<IMUPtr> imu_;       // 上一时时刻到现在的IMU读数
 };
 
-class State {
+class state {
    public:
-    Eigen::Quaterniond rotation_begin;
-    Eigen::Vector3d translation_begin;
-    Eigen::Vector3d velocity_begin;
-    Eigen::Vector3d ba_begin;
-    Eigen::Vector3d bg_begin;
-
     Eigen::Quaterniond rotation;
     Eigen::Vector3d translation;
     Eigen::Vector3d velocity;
     Eigen::Vector3d ba;
     Eigen::Vector3d bg;
 
-    State(const Eigen::Quaterniond &rotation_, const Eigen::Vector3d &translation_, const Eigen::Vector3d &velocity_,
+    Eigen::Quaterniond rotation_begin;
+    Eigen::Vector3d translation_begin;
+    Eigen::Vector3d velocity_begin;
+    Eigen::Vector3d ba_begin;
+    Eigen::Vector3d bg_begin;
+
+    state(const Eigen::Quaterniond &rotation_, const Eigen::Vector3d &translation_, const Eigen::Vector3d &velocity_,
           const Eigen::Vector3d &ba_, const Eigen::Vector3d &bg_);
 
-    State(const std::shared_ptr<State> state_temp, bool copy);
+    state(const state *state_temp, bool copy = false);
+
+    void release();
 };
 
-// 关键帧的定义
-class CloudFrame {
+class cloudFrame {
    public:
-    double time_frame_begin;
-    double time_frame_end;
+    double time_frame_begin;  //  current frame front stamp
+    double time_frame_end;    //    next frame front stamp
+
     int frame_id;
-    std::shared_ptr<State> p_state;
-    // points
-    std::vector<point3D> points_world;
-    std::vector<point3D> points_lidar;
-    std::vector<point3D> keypoints;
+
+    state *p_state;
+
+    std::vector<point3D> point_surf;  //  global frame
+    std::vector<point3D> const_surf;  //  lidar frame
+
+    std::vector<point3D> surf_keypoints;
+
     double dt_offset;
+
     bool success;
 
-    CloudFrame(const std::vector<point3D> &points_world_tmp, const std::vector<point3D> &points_lidar_tmp,
-               std::shared_ptr<State> p_state_);
+    cloudFrame(std::vector<point3D> &point_surf_, std::vector<point3D> &const_surf_, state *p_state_);
 
-    CloudFrame(std::shared_ptr<CloudFrame> p_cloud_frame);
+    cloudFrame(cloudFrame *p_cloud_frame);
 
     void release();
 };

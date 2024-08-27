@@ -68,14 +68,15 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(velodyne_ros::Point,
 namespace robosense_ros {
 struct EIGEN_ALIGN16 Point {
     PCL_ADD_POINT4D;
-    uint8_t intensity;
+    PCL_ADD_INTENSITY
+    // uint8_t intensity;
     uint16_t ring = 0;
     double timestamp = 0;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 }  // namespace robosense_ros
 POINT_CLOUD_REGISTER_POINT_STRUCT(robosense_ros::Point,
-                                  (float, x, x)(float, y, y)(float, z, z)(std::uint8_t, intensity, intensity)(
+                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(
                                       std::uint16_t, ring, ring)(double, timestamp, timestamp))
 namespace ouster_ros {
 struct EIGEN_ALIGN16 Point {

@@ -44,6 +44,16 @@ void lidar_callback(const sensor_msgs::PointCloud2::ConstPtr& msg) {
     std::vector<ctlio::point3D> cloud_out;
     ctlio::Timer::Evaluate([&]() { lidar_process->process(cloud_in, cloud_out); }, "lidar process");
     // 利用voxel降采样
+    ctlio::Timer::Evaluate(
+        [&]() {  // boost::mt19937_64 g;
+            double sample_size = lio->getIndex() < 20 ? 0.01 : 0.05;
+            // double sample_size = 0.05;
+            std::mt19937_64 g;
+            std::shuffle(cloud_out.begin(), cloud_out.end(), g);
+            SubSampleFrame(cloud_out, sample_size);
+            std::shuffle(cloud_out.begin(), cloud_out.end(), g);
+        },
+        "laser ds");
     lio->pushData(cloud_out, std::make_pair(msg->header.stamp.toSec(), lidar_process->getTimeSpan()));
 }
 
@@ -119,6 +129,7 @@ int main(int argc, char** argv) {
             transform.setOrigin(tf::Vector3(pose.translation().x(), pose.translation().y(), pose.translation().z()));
             tf::Quaternion q(q_eigen.x(), q_eigen.y(), q_eigen.z(), q_eigen.w());
             transform.setRotation(q);
+
             if (topic_name == "laser") {
                 // 发布tf
                 tf_.sendTransform(tf::StampedTransform(transform, ros::Time().fromSec(timestamp), "map", "base_link"));
